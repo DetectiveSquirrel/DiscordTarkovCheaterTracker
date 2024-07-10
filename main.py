@@ -10,6 +10,7 @@ name = "Tarkokv Cheater Tracker"
 version = "1.0"
 
 extensions = [
+    "commands.GetCheaterDetails",
     "commands.SetReportingChannel",
     "commands.ReportCheaterKill",
     "commands.ReportKilledByCheater",

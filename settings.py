@@ -43,7 +43,7 @@ LOGGING_CONFIG = {
             "formatter": "normal",
         },
         "file": {
-            "level": "DEBUG",
+            "level": "INFO",
             "class": "logging.handlers.RotatingFileHandler",
             "filename": "logs/infos.log",
             "mode": "a",
