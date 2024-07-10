@@ -6,10 +6,16 @@ import db.database as database
 
 logger = logging.getLogger(__name__)
 
-name = "Overlay Management"
+name = "Tarkokv Cheater Tracker"
 version = "1.0"
 
-extensions = ["cogs.slashcommands"]
+extensions = [
+    "commands.SetReportingChannel",
+    "commands.ReportCheaterKill",
+    "commands.ReportKilledByCheater",
+    "commands.ListCheaterDeaths",
+    "commands.ListCheatersKilled",
+]
 
 
 def init_database():

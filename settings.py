@@ -60,12 +60,12 @@ LOGGING_CONFIG = {
             "propagate": True,
         },
         "__main__": {
-            "handlers": ["file", "console"],
+            "handlers": ["file"],
             "level": "INFO",
-            "propagate": False,
+            "propagate": True,
         },
         "database": {
-            "handlers": ["file", "console"],
+            "handlers": ["file"],
             "level": "DEBUG",
             "propagate": True,
         },

@@ -44,6 +44,7 @@ except SQLAlchemyError as e:
 
 Base = declarative_base()
 
+
 # Define schemas
 class ServerSettings(Base):
     __tablename__ = DatabaseEnum.SERVER_SETTINGS.value
@@ -52,7 +53,7 @@ class ServerSettings(Base):
 
 
 class CheatersKilled(Base):
-    __tablename__ = DatabaseEnum.TABLE_CHEATER_DEATHS.value
+    __tablename__ = DatabaseEnum.TABLE_CHEATERS_KILLED.value
     id = Column(Integer, primary_key=True, autoincrement=True)
     fromUserid = Column(BigInteger)
     serverIdLoggedIn = Column(BigInteger)
@@ -62,7 +63,7 @@ class CheatersKilled(Base):
 
 
 class CheaterDeaths(Base):
-    __tablename__ = DatabaseEnum.TABLE_CHEATERS_KILLED.value
+    __tablename__ = DatabaseEnum.TABLE_CHEATER_DEATHS.value
     id = Column(Integer, primary_key=True, autoincrement=True)
     fromUserid = Column(BigInteger)
     serverIdLoggedIn = Column(BigInteger)
@@ -262,12 +263,12 @@ class DatabaseManager:
     ) -> List[Dict[str, Any]]:
         def op(session):
             results = []
-            if table in [DatabaseEnum.TABLE_CHEATERS_KILLED, DatabaseEnum.BOTH]:
+            if table in [DatabaseEnum.TABLE_CHEATER_DEATHS, DatabaseEnum.BOTH]:
                 query = session.query(CheaterDeaths)
                 if user_id:
                     query = query.filter_by(fromUserid=user_id)
                 results.extend(query.all())
-            if table in [DatabaseEnum.TABLE_CHEATER_DEATHS, DatabaseEnum.BOTH]:
+            if table in [DatabaseEnum.TABLE_CHEATERS_KILLED, DatabaseEnum.BOTH]:
                 query = session.query(CheatersKilled)
                 if user_id:
                     query = query.filter_by(fromUserid=user_id)
@@ -283,9 +284,11 @@ class DatabaseManager:
                     DatabaseEnum.CHEATERS_GAME_NAME.value: report.cheatersgamename,
                     DatabaseEnum.CHEATER_PROFILE_ID.value: report.cheaterprofileid,
                     DatabaseEnum.TIME_REPORTED.value: report.timereported,
-                    DatabaseEnum.TABLE.value: DatabaseEnum.TABLE_CHEATER_DEATHS.value
-                    if isinstance(report, CheatersKilled)
-                    else DatabaseEnum.TABLE_CHEATERS_KILLED.value,
+                    DatabaseEnum.TABLE.value: (
+                        DatabaseEnum.TABLE_CHEATER_DEATHS.value
+                        if isinstance(report, CheatersKilled)
+                        else DatabaseEnum.TABLE_CHEATERS_KILLED.value
+                    ),
                 }
                 for report in results
             ]
