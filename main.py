@@ -2,23 +2,23 @@ import logging
 import discord
 from discord.ext import commands
 import settings
-import db.database_management as database_management
+import db.database as database
 
 logger = logging.getLogger(__name__)
 
 name = "Overlay Management"
 version = "1.0"
 
-extensions = [
-    "cogs.slashcommands"
-]
+extensions = ["cogs.slashcommands"]
+
 
 def init_database():
-    if database_management.engine is not None:
-        database_management.Base.metadata.create_all(database_management.engine)
+    if database.engine is not None:
+        database.Base.metadata.create_all(database.engine)
         logger.info("Database initialized successfully")
     else:
         logger.error("Failed to initialize database: engine is None")
+
 
 def run():
     logger.info(f"Starting up bot '{name} v{version}'")
@@ -53,6 +53,7 @@ def run():
             await bot.tree.sync(guild=guild)
 
     bot.run(settings.DISCORD_API_SECRET, reconnect=True, root_logger=True)
+
 
 if __name__ == "__main__":
     run()

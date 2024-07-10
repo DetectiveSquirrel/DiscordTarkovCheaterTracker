@@ -21,11 +21,11 @@ DISCORD_API_SECRET = os.getenv("DISCORD_API_SECRET")
 BASE_OWNER_ID = int(os.getenv("BASE_OWNER_ID", 0))
 
 # Database Config
-DB_USER = os.getenv('DB_USER')
-DB_PASSWORD = os.getenv('DB_PASSWORD')
-DB_HOST = os.getenv('DB_HOST')
-DB_PORT = os.getenv('DB_PORT', '3306')  # Default MySQL port is 3306
-DB_NAME = os.getenv('DB_NAME')
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT", "3306")  # Default MySQL port is 3306
+DB_NAME = os.getenv("DB_NAME")
 
 # Logging Configuration
 LOGGING_CONFIG = {
