@@ -16,8 +16,17 @@ class CheaterDetails(commands.Cog):
     ) -> list[app_commands.Choice[str]]:
         cheaters = database.DatabaseManager.get_all_cheaters()
 
-        choices = []
+        latest_cheaters = {}
         for cheater in cheaters:
+            cheater_id = cheater["id"]
+            if (
+                cheater_id not in latest_cheaters
+                or cheater["timereported"] > latest_cheaters[cheater_id]["timereported"]
+            ):
+                latest_cheaters[cheater_id] = cheater
+
+        choices = []
+        for cheater in latest_cheaters.values():
             if (
                 current.lower() in str(cheater["id"]).lower()
                 or current.lower() in cheater["name"].lower()

@@ -529,14 +529,20 @@ class DatabaseManager:
     def get_all_cheaters(cls) -> List[Dict[str, Any]]:
         def op(session):
             cheaters_killed = session.query(
-                distinct(CheatersKilled.cheaterprofileid),
+                CheatersKilled.cheaterprofileid,
                 CheatersKilled.cheatersgamename,
+                CheatersKilled.timereported,
             ).all()
             cheaters_deaths = session.query(
-                distinct(CheaterDeaths.cheaterprofileid), CheaterDeaths.cheatersgamename
+                CheaterDeaths.cheaterprofileid,
+                CheaterDeaths.cheatersgamename,
+                CheaterDeaths.timereported,
             ).all()
 
-            all_cheaters = {(c[0], c[1]) for c in cheaters_killed + cheaters_deaths}
-            return [{"id": cheater[0], "name": cheater[1]} for cheater in all_cheaters]
+            all_cheaters = [
+                {"id": c[0], "name": c[1], "timereported": c[2]}
+                for c in cheaters_killed + cheaters_deaths
+            ]
+            return all_cheaters
 
         return cls._execute_db_operation(op)
