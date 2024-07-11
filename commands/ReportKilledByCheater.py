@@ -40,6 +40,10 @@ class ReportKilledByCheater(commands.Cog):
                 class CheaterIDModal(
                     discord.ui.Modal, title="Submit Cheater Information"
                 ):
+                    def __init__(self, ctx):
+                        super().__init__()
+                        self.ctx = ctx
+
                     cheater_name = discord.ui.TextInput(
                         label="Cheater's Game Name",
                         placeholder="Enter the cheater's game name",
@@ -50,12 +54,19 @@ class ReportKilledByCheater(commands.Cog):
                     )
 
                     async def on_submit(self, interaction: discord.Interaction):
+                        logger.debug("on_submit called")
                         cheater_name_value = self.cheater_name.value.strip().lower()
                         cheater_profile_id_value = self.cheater_profile_id.value
                         from_user_id_int = interaction.user.id
                         server_id_logged_in_int = interaction.guild.id
                         cheater_profile_id_int = int(cheater_profile_id_value)
                         time_reported = int(time.time())
+
+                        logger.debug(f"Cheater Name: {cheater_name_value}")
+                        logger.debug(f"Cheater Profile ID: {cheater_profile_id_int}")
+                        logger.debug(f"Reported by User ID: {from_user_id_int}")
+                        logger.debug(f"Server ID: {server_id_logged_in_int}")
+                        logger.debug(f"Time Reported: {time_reported}")
 
                         db.database.DatabaseManager.add_killed_by_cheater(
                             fromUserid=from_user_id_int,
@@ -64,6 +75,9 @@ class ReportKilledByCheater(commands.Cog):
                             cheaterprofileid=cheater_profile_id_int,
                             timereported=time_reported,
                         )
+
+                        logger.debug("Database entry added")
+
                         embed = discord.Embed(
                             title="Killed by Cheater Report",
                             description="A user has reported being killed by a cheater.",
@@ -83,13 +97,32 @@ class ReportKilledByCheater(commands.Cog):
                         )
                         embed.add_field(
                             name="Server",
-                            value=f"```\n{interaction.guild.name}```",
+                            value=f"'{interaction.guild.name}'",
                             inline=False,
                         )
 
-                        await interaction.response.send_message(embed=embed)
+                        # Send report to all configured report channels
+                        logger.debug("Fetching server settings")
+                        server_settings = (
+                            db.database.DatabaseManager.get_server_settings()
+                        )
+                        for setting in server_settings:
+                            report_channel_id = setting.get("channelid")
+                            if report_channel_id:
+                                report_channel = self.ctx.bot.get_channel(
+                                    report_channel_id
+                                )
+                                if report_channel:
+                                    logger.debug(
+                                        f"Sending report to channel ID: {report_channel_id}"
+                                    )
+                                    await report_channel.send(embed=embed)
 
-                modal = CheaterIDModal()
+                        await interaction.response.send_message(
+                            "Report sent to all configured channels.", ephemeral=True
+                        )
+
+                modal = CheaterIDModal(ctx)
                 await interaction.response.send_modal(modal)
 
         await ctx.send(

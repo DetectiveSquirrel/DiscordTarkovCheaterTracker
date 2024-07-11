@@ -59,6 +59,17 @@ def run():
             bot.tree.copy_global_to(guild=guild)
             await bot.tree.sync(guild=guild)
 
+    @bot.event
+    async def on_guild_join(guild):
+        logger.info(f"Joined new guild: {guild.name} (ID: {guild.id})")
+        bot.tree.copy_global_to(guild=guild)
+        await bot.tree.sync(guild=guild)
+        logger.info(f"Commands synced for guild: {guild.name}")
+
+    @bot.event
+    async def on_guild_remove(guild):
+        logger.info(f"Removed from guild: {guild.name} (ID: {guild.id})")
+
     bot.run(settings.DISCORD_API_SECRET, reconnect=True, root_logger=True)
 
 
