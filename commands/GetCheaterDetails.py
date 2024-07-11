@@ -4,6 +4,7 @@ from discord.ext import commands
 import db.database as database
 import logging
 from helpers.utils import get_user_mention
+import helpers.checks
 
 logger = logging.getLogger("bot")
 
@@ -45,6 +46,13 @@ class CheaterDetails(commands.Cog):
     )
     @app_commands.autocomplete(cheater=cheater_autocomplete)
     async def get_cheater_details(self, interaction: discord.Interaction, cheater: str):
+        if not helpers.checks.is_guild_id_configured(interaction.guild.id):
+            await interaction.response.send_message(
+                "Please configure the server with `/set_reporting_channel` and the channels id.",
+                ephemeral=True,
+            )
+            return
+
         try:
             logger.debug(f"Parsing cheater ID: {cheater}")
             cheater_id = int(cheater)

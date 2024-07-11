@@ -3,6 +3,7 @@ from discord.ext import commands
 import time
 import db.database
 import logging
+import helpers.checks
 
 logger = logging.getLogger("bot")
 
@@ -15,6 +16,14 @@ class ReportCheaterKill(commands.Cog):
         name="report_cheater_kill", description="Report a cheater that has been killed."
     )
     async def add_cheater_kill(self, ctx):
+
+        if not helpers.checks.is_guild_configured(ctx):
+            await ctx.send(
+                "Please configure the server with `/set_reporting_channel` and the channels id.",
+                ephemeral=True,
+            )
+            return
+
         class ContinueButton(discord.ui.View):
             def __init__(self, ctx):
                 super().__init__()

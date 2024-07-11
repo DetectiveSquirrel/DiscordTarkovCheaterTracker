@@ -5,6 +5,7 @@ import db.database as database
 from helpers.pagination import Pagination
 import helpers.utils
 import math
+import helpers.checks
 
 logger = logging.getLogger("bot")
 
@@ -19,12 +20,20 @@ class ListCheatersKilled(commands.Cog):
     )
     # @commands.cooldown(3, 30, commands.BucketType.guild)
     async def list_cheaters_killed(self, ctx):
+
+        if not helpers.checks.is_guild_configured(ctx):
+            await ctx.send(
+                "Please configure the server with `/set_reporting_channel` and the channels id.",
+                ephemeral=True,
+            )
+            return
+
         reports = database.DatabaseManager.get_cheater_reports(
             table=database.DatabaseEnum.TABLE_CHEATERS_KILLED
         )
 
         if not reports:
-            await ctx.send("No cheater death reports found.", ephemeral=True)
+            await ctx.send("No cheater murder reports found.", ephemeral=True)
             return
 
         cheater_summary = {}

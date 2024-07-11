@@ -3,6 +3,7 @@ import discord
 import logging
 import db.database
 import time
+import helpers.checks
 
 logger = logging.getLogger("bot")
 
@@ -16,6 +17,14 @@ class ReportKilledByCheater(commands.Cog):
         description="Report that you were killed by a cheater.",
     )
     async def report_killed_by_cheater(self, ctx):
+
+        if not helpers.checks.is_guild_configured(ctx):
+            await ctx.send(
+                "Please configure the server with `/set_reporting_channel` and the channels id.",
+                ephemeral=True,
+            )
+            return
+
         class ContinueButton(discord.ui.View):
             def __init__(self, ctx):
                 super().__init__()
