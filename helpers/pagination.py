@@ -1,22 +1,26 @@
 import discord
 from typing import Callable, Optional
 import time
+import asyncio
 
 
 class Pagination(discord.ui.View):
     def __init__(
         self, interaction: discord.Interaction, get_page: Callable, timeout: int = 30
     ):
-        super().__init__(timeout=timeout)
+        super().__init__(timeout=None)  # Set to None to manage timeout manually
         self.interaction = interaction
         self.get_page = get_page
         self.total_pages: Optional[int] = None
         self.index = 1
         self.timeout_duration = timeout
+        self.last_interaction_time = None
+        self.task = None
 
     async def navigate(self):
+        self.last_interaction_time = time.time()
         emb, self.total_pages = await self.get_page(self.index)
-        timeout_timestamp = int(time.time()) + self.timeout_duration
+        timeout_timestamp = int(self.last_interaction_time) + self.timeout_duration
         emb.add_field(
             name="*Command Timeout:*",
             value=f"*<t:{timeout_timestamp}:R>*",
@@ -28,9 +32,12 @@ class Pagination(discord.ui.View):
         else:
             await self.interaction.response.send_message(embed=emb)
 
+        self.task = asyncio.create_task(self.check_timeout())
+
     async def edit_page(self, interaction: discord.Interaction):
+        self.last_interaction_time = time.time()
         emb, self.total_pages = await self.get_page(self.index)
-        timeout_timestamp = int(time.time()) + self.timeout_duration + 1
+        timeout_timestamp = int(self.last_interaction_time) + self.timeout_duration
         emb.add_field(name="Timeout", value=f"<t:{timeout_timestamp}:R>", inline=False)
         self.update_buttons()
         await interaction.response.edit_message(embed=emb, view=self)
@@ -61,14 +68,24 @@ class Pagination(discord.ui.View):
         self.index = self.total_pages
         await self.edit_page(interaction)
 
+    async def check_timeout(self):
+        while True:
+            await asyncio.sleep(1)  # Check every second
+            if (
+                self.last_interaction_time
+                and time.time() > self.last_interaction_time + self.timeout_duration
+            ):
+                await self.on_timeout()
+                break
+
     async def on_timeout(self):
-        # Edit the message on timeout to indicate it has timed out
         try:
             emb = discord.Embed(description=f"This interaction has timed out.")
             message = await self.interaction.original_response()
             await message.edit(embed=emb, view=None)
         except discord.NotFound:
             pass
+        self.stop()
 
     @staticmethod
     def compute_total_pages(total_results: int, results_per_page: int) -> int:

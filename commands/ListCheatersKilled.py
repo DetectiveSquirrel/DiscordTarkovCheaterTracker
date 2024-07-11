@@ -88,7 +88,7 @@ class ListCheatersKilled(commands.Cog):
                 latest_names.append(
                     f"[{data['latest_name']}](https://tarkov.dev/player/{cheater_id})"
                 )
-                counts.append(f"{data['count']}")
+                counts.append(f"({data['count']})")
                 reporters.append(
                     await helpers.utils.get_user_mention(
                         ctx.guild, ctx.bot, data["reporter"]
