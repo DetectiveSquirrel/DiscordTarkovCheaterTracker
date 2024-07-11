@@ -1,12 +1,4 @@
-from sqlalchemy import (
-    create_engine,
-    Column,
-    Integer,
-    String,
-    BigInteger,
-    func,
-    distinct,
-)
+from sqlalchemy import create_engine, Column, Integer, String, BigInteger, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
