@@ -115,7 +115,7 @@ class ReportCheaterKill(commands.Cog):
                                     logger.debug(
                                         f"Sending report to channel ID: {report_channel_id}"
                                     )
-                                    await report_channel.send(embed=embed)
+                                    await report_channel.send(embed=embed, silent=True)
 
                         await interaction.response.send_message(
                             "Report sent to all configured channels.", ephemeral=True

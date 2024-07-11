@@ -73,15 +73,14 @@ class CheaterDetails(commands.Cog):
             color=discord.Color.red(),
         )
 
-        # Add required fields
-        embed.add_field(
-            name="Last Known Name",
-            value=f"[{cheater_details['name']}](https://tarkov.dev/player/{cheater_details['id']})",
-            inline=True,
-        )
         embed.add_field(
             name="Profile ID",
             value=f"[{cheater_details['id']}](https://tarkov.dev/player/{cheater_details['id']})",
+            inline=True,
+        )
+        embed.add_field(
+            name="Last Known Name",
+            value=f"[{cheater_details['name']}](https://tarkov.dev/player/{cheater_details['id']})",
             inline=True,
         )
 
