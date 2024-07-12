@@ -19,36 +19,52 @@ logger = logging.getLogger("command")
 class ListCheaters(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        logger.info("ListCheaters cog initialized")
 
     async def report_type_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> List[app_commands.Choice[str]]:
         logger.debug(f"Report type autocomplete called with current: {current}")
-        choices = [
-            app_commands.Choice(name=REPORT_TYPE_DISPLAY[rt], value=rt.name)
-            for rt in ReportType
-            if current.lower() in REPORT_TYPE_DISPLAY[rt].lower()
+        choices = [app_commands.Choice(name="All", value="All")]
+        choices.extend(
+            [
+                app_commands.Choice(name=REPORT_TYPE_DISPLAY[rt], value=rt.name)
+                for rt in ReportType
+            ]
+        )
+        choices.append(app_commands.Choice(name="From User", value="From User"))
+
+        filtered_choices = [
+            choice for choice in choices if current.lower() in choice.name.lower()
         ]
-        logger.debug(f"Returning {len(choices)} autocomplete choices")
-        return choices
+        logger.debug(f"Returning {len(filtered_choices)} autocomplete choices")
+        return filtered_choices[:25]
+
+    async def user_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> List[app_commands.Choice[str]]:
+        logger.debug(f"User autocomplete called with current: {current}")
+        members = interaction.guild.members
+        choices = [
+            app_commands.Choice(name=member.name, value=member.mention)
+            for member in members
+            if current.lower() in member.name.lower()
+            or current.lower() in member.mention
+        ]
+        logger.debug(f"Returning {len(choices)} user autocomplete choices")
+        return choices[:25]
 
     @commands.hybrid_command(
         name="list_cheaters",
         description="List all cheaters reported.",
     )
-    @app_commands.autocomplete(report_type=report_type_autocomplete)
-    async def list_cheaters(self, ctx, report_type: str):
+    @app_commands.autocomplete(
+        report_type=report_type_autocomplete, user=user_autocomplete
+    )
+    async def list_cheaters(self, ctx, report_type: str, user: str = None):
         logger.info(
-            f"list_cheaters command called by {ctx.author} with report_type: {report_type}"
+            f"list_cheaters command called by {ctx.author} with report_type: {report_type}, user: {user}"
         )
-
-        try:
-            report_enum = ReportType[report_type]
-            logger.debug(f"Parsed report type: {report_enum}")
-        except KeyError:
-            logger.warning(f"Invalid report type provided: {report_type}")
-            await ctx.send("Invalid report type. Please try again.", ephemeral=True)
-            return
 
         if not checks.is_guild_configured(ctx):
             logger.warning(f"Guild {ctx.guild.id} not configured")
@@ -58,14 +74,44 @@ class ListCheaters(commands.Cog):
             )
             return
 
-        logger.debug(f"Fetching cheater reports for type: {report_enum}")
-        reports = DatabaseManager.get_cheater_reports_by_type(report_enum)
+        if report_type == "From User" and not user:
+            logger.warning("From User selected but no user provided")
+            await ctx.send(
+                "Please select a user when using 'From User' option.", ephemeral=True
+            )
+            return
+
+        logger.debug(f"Fetching cheater reports for type: {report_type}")
+        if report_type == "All":
+            reports = []
+            for rt in ReportType:
+                reports.extend(DatabaseManager.get_cheater_reports_by_type(rt))
+        elif report_type == "From User":
+            user_id = (
+                int(user[2:-1])
+                if user.startswith("<@") and user.endswith(">")
+                else None
+            )
+            if user_id:
+                reports = DatabaseManager.get_cheater_reports_by_user(user_id)
+            else:
+                logger.warning(f"Invalid user mention: {user}")
+                await ctx.send(
+                    "Invalid user mention. Please try again.", ephemeral=True
+                )
+                return
+        else:
+            try:
+                report_enum = ReportType[report_type]
+                reports = DatabaseManager.get_cheater_reports_by_type(report_enum)
+            except KeyError:
+                logger.warning(f"Invalid report type provided: {report_type}")
+                await ctx.send("Invalid report type. Please try again.", ephemeral=True)
+                return
 
         if not reports:
-            logger.info(f"No {REPORT_TYPE_DISPLAY[report_enum]} reports found")
-            await ctx.send(
-                f"No {REPORT_TYPE_DISPLAY[report_enum]} reports found.", ephemeral=True
-            )
+            logger.info(f"No reports found for the given criteria")
+            await ctx.send("No reports found for the given criteria.", ephemeral=True)
             return
 
         logger.debug(f"Processing {len(reports)} reports")
@@ -122,7 +168,7 @@ class ListCheaters(commands.Cog):
             current_page = sorted_summary[start:end]
 
             embed = discord.Embed(
-                title=f"'{REPORT_TYPE_DISPLAY[report_enum]}' Reports",
+                title=f"Cheater Reports - {report_type}",
                 color=discord.Color.red(),
             )
 
