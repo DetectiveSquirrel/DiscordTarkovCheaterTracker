@@ -46,13 +46,12 @@ class ListCheaters(commands.Cog):
         logger.debug(f"User autocomplete called with current: {current}")
         members = interaction.guild.members
         choices = [
-            app_commands.Choice(name=member.name, value=member.mention)
+            app_commands.Choice(name=f"@{member.display_name}", value=str(member.id))
             for member in members
-            if current.lower() in member.name.lower()
-            or current.lower() in member.mention
+            if current.lower() in member.display_name.lower()
         ]
         logger.debug(f"Returning {len(choices)} user autocomplete choices")
-        return choices[:25]
+        return choices[:8]
 
     @commands.hybrid_command(
         name="list_cheaters",
@@ -82,36 +81,50 @@ class ListCheaters(commands.Cog):
             return
 
         logger.debug(f"Fetching cheater reports for type: {report_type}")
-        if report_type == "All":
-            reports = []
-            for rt in ReportType:
-                type_reports = DatabaseManager.get_cheater_reports_by_type(rt)
-                logger.debug(
-                    f"Retrieved {len(type_reports)} reports for ReportType: {rt}"
-                )
-                reports.extend(type_reports)
-        elif report_type == "From User":
-            user_id = (
-                int(user[2:-1])
-                if user.startswith("<@") and user.endswith(">")
-                else None
-            )
-            if user_id:
-                reports = DatabaseManager.get_cheater_reports_by_user(user_id)
-            else:
-                logger.warning(f"Invalid user mention: {user}")
-                await ctx.send(
-                    "Invalid user mention. Please try again.", ephemeral=True
-                )
-                return
-        else:
+        if report_type == "All" and user:
+            user_id = int(user)
+            reports = DatabaseManager.get_all_cheater_reports_by_user(user_id)
+            logger.debug(f"Retrieved {len(reports)} reports for user: {user}")
+        elif report_type == "From User" and user:
+            user_id = int(user)
+            reports = DatabaseManager.get_cheater_reports_by_user(user_id)
+            logger.debug(f"Retrieved {len(reports)} reports for user: {user}")
+        elif report_type != "From User" and user:
+            user_id = int(user)
             try:
                 report_enum = ReportType[report_type]
-                reports = DatabaseManager.get_cheater_reports_by_type(report_enum)
+                reports = DatabaseManager.get_cheater_reports_by_type_and_user(
+                    report_enum, user_id
+                )
+                logger.debug(
+                    f"Retrieved {len(reports)} reports for ReportType: {report_enum} and user: {user}"
+                )
             except KeyError:
                 logger.warning(f"Invalid report type provided: {report_type}")
                 await ctx.send("Invalid report type. Please try again.", ephemeral=True)
                 return
+        else:
+            if report_type == "All":
+                reports = []
+                for rt in ReportType:
+                    type_reports = DatabaseManager.get_cheater_reports_by_type(rt)
+                    logger.debug(
+                        f"Retrieved {len(type_reports)} reports for ReportType: {rt}"
+                    )
+                    reports.extend(type_reports)
+            else:
+                try:
+                    report_enum = ReportType[report_type]
+                    reports = DatabaseManager.get_cheater_reports_by_type(report_enum)
+                    logger.debug(
+                        f"Retrieved {len(reports)} reports for ReportType: {report_enum}"
+                    )
+                except KeyError:
+                    logger.warning(f"Invalid report type provided: {report_type}")
+                    await ctx.send(
+                        "Invalid report type. Please try again.", ephemeral=True
+                    )
+                    return
 
         if not reports:
             logger.info(f"No reports found for the given criteria")

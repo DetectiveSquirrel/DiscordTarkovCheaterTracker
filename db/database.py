@@ -463,3 +463,32 @@ class DatabaseManager:
             return [item.__dict__ for item in reports]
 
         return cls._execute_db_operation(op)
+
+    @classmethod
+    def get_all_cheater_reports_by_user(cls, user_id: int) -> List[Dict[str, Any]]:
+        def op(session):
+            reports = (
+                session.query(CheaterReport)
+                .filter(CheaterReport.reporter_user_id == user_id)
+                .order_by(CheaterReport.report_time.desc())
+                .all()
+            )
+            return [item.__dict__ for item in reports]
+
+        return cls._execute_db_operation(op)
+
+    @classmethod
+    def get_cheater_reports_by_type_and_user(
+        cls, report_type: ReportType, user_id: int
+    ) -> List[Dict[str, Any]]:
+        def op(session):
+            reports = (
+                session.query(CheaterReport)
+                .filter(CheaterReport.report_type == report_type)
+                .filter(CheaterReport.reporter_user_id == user_id)
+                .order_by(CheaterReport.report_time.desc())
+                .all()
+            )
+            return [item.__dict__ for item in reports]
+
+        return cls._execute_db_operation(op)
