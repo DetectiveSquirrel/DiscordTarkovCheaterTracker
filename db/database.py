@@ -87,7 +87,7 @@ class CheaterReport(Base):
     cheater_game_name = Column(String(255))
     cheater_profile_id = Column(BigInteger)
     report_time = Column(BigInteger)
-    report_type = Column(SQLAlchemyEnum(ReportType))
+    report_type = Column(SQLAlchemyEnum(ReportType, create_type=True))
 
 
 # Create tables
