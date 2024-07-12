@@ -14,9 +14,9 @@ logger = logging.getLogger(__name__)
 
 EXTENSIONS = [
     "commands.ReportAPlayer",
-    "commands.CheaterDetails",
+    "commands.ReportDetails",
     "commands.SetReportingChannel",
-    "commands.ListCheaters",
+    "commands.ListReports",
 ]
 
 

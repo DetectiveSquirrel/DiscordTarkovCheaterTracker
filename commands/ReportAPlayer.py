@@ -26,9 +26,11 @@ class ReportAPlayer(commands.Cog):
         logger.debug(f"Returning {len(choices)} autocomplete choices")
         return choices
 
-    @app_commands.command(name="report", description="Submit a report about a player.")
+    @app_commands.command(
+        name="report_player", description="Submit a report about a player."
+    )
     @app_commands.autocomplete(report_type=report_type_autocomplete)
-    async def report(
+    async def report_player(
         self,
         interaction: discord.Interaction,
         report_type: str,
