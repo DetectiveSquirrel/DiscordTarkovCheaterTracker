@@ -85,7 +85,11 @@ class ListCheaters(commands.Cog):
         if report_type == "All":
             reports = []
             for rt in ReportType:
-                reports.extend(DatabaseManager.get_cheater_reports_by_type(rt))
+                type_reports = DatabaseManager.get_cheater_reports_by_type(rt)
+                logger.debug(
+                    f"Retrieved {len(type_reports)} reports for ReportType: {rt}"
+                )
+                reports.extend(type_reports)
         elif report_type == "From User":
             user_id = (
                 int(user[2:-1])
@@ -167,8 +171,13 @@ class ListCheaters(commands.Cog):
             end = start + items_per_page
             current_page = sorted_summary[start:end]
 
+            try:
+                report_type_display = REPORT_TYPE_DISPLAY[ReportType[report_type]]
+            except KeyError:
+                report_type_display = report_type
+
             embed = discord.Embed(
-                title=f"Cheater Reports - {report_type}",
+                title=f"Cheater Reports for '{report_type_display}'",
                 color=discord.Color.red(),
             )
 
@@ -180,7 +189,7 @@ class ListCheaters(commands.Cog):
                 latest_names.append(
                     f"[{data['latest_name']}](https://tarkov.dev/player/{cheater_id})"
                 )
-                counts.append(f"({data['count']})")
+                counts.append(f"` {data['count']} `")
                 reporter_mention = await utils.get_user_mention(
                     ctx.guild, ctx.bot, data["reporter"]
                 )
@@ -206,7 +215,7 @@ class ListCheaters(commands.Cog):
             return embed, pages
 
         logger.info("Creating pagination view")
-        view = Pagination(ctx.interaction, get_page)
+        view = Pagination(ctx.interaction, get_page, timeout=30, delete_on_timeout=True)
         await view.navigate()
         logger.info("Pagination view navigation started")
 

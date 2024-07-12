@@ -6,7 +6,11 @@ import asyncio
 
 class Pagination(discord.ui.View):
     def __init__(
-        self, interaction: discord.Interaction, get_page: Callable, timeout: int = 30
+        self,
+        interaction: discord.Interaction,
+        get_page: Callable,
+        timeout: int = 30,
+        delete_on_timeout: bool = False,
     ):
         super().__init__(timeout=None)  # Set to None to manage timeout manually
         self.interaction = interaction
@@ -16,6 +20,7 @@ class Pagination(discord.ui.View):
         self.timeout_duration = timeout
         self.last_interaction_time = None
         self.task = None
+        self.delete_on_timeout = delete_on_timeout
 
     async def navigate(self):
         self.last_interaction_time = time.time()
@@ -28,9 +33,11 @@ class Pagination(discord.ui.View):
         )
         if self.total_pages > 1:
             self.update_buttons()
-            await self.interaction.response.send_message(embed=emb, view=self)
+            await self.interaction.response.send_message(
+                embed=emb, view=self, silent=True
+            )
         else:
-            await self.interaction.response.send_message(embed=emb)
+            await self.interaction.response.send_message(embed=emb, silent=True)
 
         self.task = asyncio.create_task(self.check_timeout())
 
@@ -80,9 +87,12 @@ class Pagination(discord.ui.View):
 
     async def on_timeout(self):
         try:
-            emb = discord.Embed(description=f"This interaction has timed out.")
             message = await self.interaction.original_response()
-            await message.edit(embed=emb, view=None)
+            if self.delete_on_timeout:
+                await message.delete()
+            else:
+                emb = discord.Embed(description="This interaction has timed out.")
+                await message.edit(embed=emb, view=None)
         except discord.NotFound:
             pass
         self.stop()

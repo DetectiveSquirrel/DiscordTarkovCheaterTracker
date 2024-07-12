@@ -175,28 +175,34 @@ class ReportAPlayer(commands.Cog):
                 )
 
                 logger.debug("Fetching server settings for report channel")
-                server_settings = DatabaseManager.get_server_settings(
-                    interaction.guild_id
-                )
-                channel_id = server_settings[0].get("channel_id")
-                if channel_id:
-                    logger.debug(f"Sending report to channel {channel_id}")
-                    report_channel = self.bot.get_channel(channel_id)
-                    if report_channel:
-                        await report_channel.send(embed=embed)
+                server_settings = DatabaseManager.get_server_settings()
+                for setting in server_settings:
+                    channel_id = setting.get("channel_id")
+                    if channel_id:
+                        logger.debug(f"Sending report to channel {channel_id}")
+                        report_channel = self.bot.get_channel(channel_id)
+                        if report_channel:
+                            try:
+                                await report_channel.send(embed=embed, silent=True)
+                                logger.info(f"Report sent to channel {channel_id}")
+                            except Exception as e:
+                                logger.error(
+                                    f"Failed to send report to channel {channel_id}: {e}"
+                                )
+                        else:
+                            logger.warning(
+                                f"Could not find report channel with ID {channel_id}"
+                            )
                     else:
                         logger.warning(
-                            f"Could not find report channel with ID {channel_id}"
+                            f"No report channel configured for server settings: {setting}"
                         )
-                else:
-                    logger.warning(
-                        f"No report channel configured for guild {interaction.guild_id}"
-                    )
 
                 logger.info("Report submitted successfully")
                 await modal_interaction.response.send_message(
                     f"{self.report_type_display} report has been submitted successfully.",
                     ephemeral=True,
+                    silent=True,
                 )
 
         logger.debug("Sending initial response with continue button")
@@ -204,7 +210,6 @@ class ReportAPlayer(commands.Cog):
             "Please go to [tarkov.dev/players](https://tarkov.dev/players) to get the profile ID and name (id is the URL # at the end), then click the button below to continue.",
             view=ContinueButton(self.bot),
             ephemeral=True,
-            silent=True,
         )
 
 

@@ -212,7 +212,7 @@ class CheaterDetails(commands.Cog):
 
         logger.debug("Sending response")
         try:
-            await interaction.response.send_message(embed=embed)
+            await interaction.response.send_message(embed=embed, silent=True)
             logger.debug("Response sent successfully")
         except Exception as e:
             logger.error(f"Error sending response: {e}")
