@@ -10,7 +10,7 @@ import re
 logger = logging.getLogger("command")
 
 
-class SetReportingChannel(commands.Cog):
+class ReportAPlayer(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
@@ -26,11 +26,9 @@ class SetReportingChannel(commands.Cog):
         logger.debug(f"Returning {len(choices)} autocomplete choices")
         return choices
 
-    @app_commands.command(
-        name="set_reporting_channel", description="Submit a report about a player."
-    )
+    @app_commands.command(name="report", description="Submit a report about a player.")
     @app_commands.autocomplete(report_type=report_type_autocomplete)
-    async def set_reporting_channel(
+    async def report(
         self,
         interaction: discord.Interaction,
         report_type: str,
@@ -93,7 +91,6 @@ class SetReportingChannel(commands.Cog):
                 self.bot = bot
                 self.report_type_display = report_type_display
                 self.report_enum = report_enum
-                logger.debug(f"Report modal initialized for {report_type_display}")
 
             cheater_name = discord.ui.TextInput(
                 label="Player's Game Name",
@@ -173,7 +170,7 @@ class SetReportingChannel(commands.Cog):
                 )
                 embed.add_field(
                     name="From Discord Server",
-                    value=f"`{interaction.guild.name}`",
+                    value=f"'{interaction.guild.name}'",
                     inline=False,
                 )
 
@@ -212,4 +209,4 @@ class SetReportingChannel(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(SetReportingChannel(bot))
+    await bot.add_cog(ReportAPlayer(bot))
