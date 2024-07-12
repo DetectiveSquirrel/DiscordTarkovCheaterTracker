@@ -65,7 +65,7 @@ LOGGING_CONFIG = {
             "propagate": True,
         },
         "database": {
-            "handlers": ["file"],
+            "handlers": ["file", "console"],
             "level": "DEBUG",
             "propagate": True,
         },

@@ -38,11 +38,17 @@ class CheaterReportFields(Enum):
 class ReportType(Enum):
     KILLED_BY_CHEATER = auto()
     KILLED_A_CHEATER = auto()
+    SUS_AS_FUCK = auto()
+    STREAM_SNIPER = auto()
+    WORD_OF_MOUTH = auto()
 
 
 REPORT_TYPE_DISPLAY = {
     ReportType.KILLED_BY_CHEATER: "Killed by Cheater",
     ReportType.KILLED_A_CHEATER: "Killed a Cheater",
+    ReportType.SUS_AS_FUCK: "Sus as Fuck",
+    ReportType.STREAM_SNIPER: "Probable Stream Sniper",
+    ReportType.WORD_OF_MOUTH: "Word of Mouth",
 }
 
 
@@ -175,6 +181,7 @@ class DatabaseManager:
         report_type: ReportType,
     ) -> None:
         def op(session):
+            logger.debug("Adding cheater report to the session")
             session.add(
                 CheaterReport(
                     **{
@@ -187,7 +194,9 @@ class DatabaseManager:
                     }
                 )
             )
+            logger.debug("Committing the session to the database")
             session.commit()
+            logger.debug("Session committed successfully")
 
         cls._execute_db_operation(op)
 
