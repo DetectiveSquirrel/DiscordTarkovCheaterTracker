@@ -66,17 +66,17 @@ LOGGING_CONFIG = {
         },
         "database": {
             "handlers": ["file", "console"],
-            "level": "DEBUG",
+            "level": "INFO",
             "propagate": True,
         },
         "command": {
             "handlers": ["file", "console"],
-            "level": "DEBUG",
+            "level": "INFO",
             "propagate": True,
         },
         "helpers": {
             "handlers": ["file", "console"],
-            "level": "DEBUG",
+            "level": "INFO",
             "propagate": True,
         },
     },
