@@ -61,7 +61,7 @@ class ListReports(commands.Cog):
     )
     async def list_reports(self, ctx, report_type: str, user: str = None):
         logger.info(
-            f"list_cheaters command called by {ctx.author} with report_type: {report_type}, user: {user}"
+            f"list_reports command called by {ctx.author} with report_type: {report_type}, user: {user}"
         )
 
         if not checks.is_guild_configured(ctx):
@@ -79,55 +79,65 @@ class ListReports(commands.Cog):
             )
             return
 
-        logger.debug(f"Fetching cheater reports for type: {report_type}")
-        if report_type == "All" and user:
-            user_id = int(user)
-            reports = DatabaseManager.get_all_cheater_reports_by_user(user_id)
-            logger.debug(f"Retrieved {len(reports)} reports for user: {user}")
-        elif report_type == "From User" and user:
-            user_id = int(user)
-            reports = DatabaseManager.get_cheater_reports_by_user(user_id)
-            logger.debug(f"Retrieved {len(reports)} reports for user: {user}")
-        elif report_type != "From User" and user:
-            user_id = int(user)
-            try:
-                report_enum = ReportType[report_type]
-                reports = DatabaseManager.get_cheater_reports_by_type_and_user(
-                    report_enum, user_id
+        logger.debug(f"Fetching non-absolved cheater reports for type: {report_type}")
+        try:
+            if report_type == "All" and user:
+                user_id = int(user)
+                reports = DatabaseManager.get_all_cheater_reports_by_user(
+                    user_id, absolved=False
                 )
                 logger.debug(
-                    f"Retrieved {len(reports)} reports for ReportType: {report_enum} and user: {user}"
+                    f"Retrieved {len(reports)} non-absolved reports for user: {user}"
                 )
-            except KeyError:
-                logger.warning(f"Invalid report type provided: {report_type}")
-                await ctx.send("Invalid report type. Please try again.", ephemeral=True)
-                return
-        else:
-            if report_type == "All":
-                reports = []
-                for rt in ReportType:
-                    type_reports = DatabaseManager.get_cheater_reports_by_type(rt)
-                    logger.debug(
-                        f"Retrieved {len(type_reports)} reports for ReportType: {rt}"
-                    )
-                    reports.extend(type_reports)
+            elif report_type == "From User" and user:
+                user_id = int(user)
+                reports = DatabaseManager.get_cheater_reports_by_user(
+                    user_id, absolved=False
+                )
+                logger.debug(
+                    f"Retrieved {len(reports)} non-absolved reports for user: {user}"
+                )
+            elif report_type != "From User" and user:
+                user_id = int(user)
+                report_enum = ReportType[report_type]
+                reports = DatabaseManager.get_cheater_reports_by_type_and_user(
+                    report_enum, user_id, absolved=False
+                )
+                logger.debug(
+                    f"Retrieved {len(reports)} non-absolved reports for ReportType: {report_enum} and user: {user}"
+                )
             else:
-                try:
+                if report_type == "All":
+                    reports = []
+                    for rt in ReportType:
+                        type_reports = DatabaseManager.get_cheater_reports_by_type(
+                            rt, absolved=False
+                        )
+                        logger.debug(
+                            f"Retrieved {len(type_reports)} non-absolved reports for ReportType: {rt}"
+                        )
+                        reports.extend(type_reports)
+                else:
                     report_enum = ReportType[report_type]
-                    reports = DatabaseManager.get_cheater_reports_by_type(report_enum)
+                    reports = DatabaseManager.get_cheater_reports_by_type(
+                        report_enum, absolved=False
+                    )
                     logger.debug(
-                        f"Retrieved {len(reports)} reports for ReportType: {report_enum}"
+                        f"Retrieved {len(reports)} non-absolved reports for ReportType: {report_enum}"
                     )
-                except KeyError:
-                    logger.warning(f"Invalid report type provided: {report_type}")
-                    await ctx.send(
-                        "Invalid report type. Please try again.", ephemeral=True
-                    )
-                    return
+        except Exception as e:
+            logger.error(f"Error fetching reports: {e}")
+            await ctx.send(
+                "An error occurred while fetching reports. Please try again later.",
+                ephemeral=True,
+            )
+            return
 
         if not reports:
-            logger.info(f"No reports found for the given criteria")
-            await ctx.send("No reports found for the given criteria.", ephemeral=True)
+            logger.info(f"No non-absolved reports found for the given criteria")
+            await ctx.send(
+                "No non-absolved reports found for the given criteria.", ephemeral=True
+            )
             return
 
         logger.debug(f"Processing {len(reports)} reports")
@@ -184,7 +194,11 @@ class ListReports(commands.Cog):
             current_page = sorted_summary[start:end]
 
             try:
-                report_type_display = REPORT_TYPE_DISPLAY[ReportType[report_type]]
+                report_type_display = (
+                    REPORT_TYPE_DISPLAY[ReportType[report_type]]
+                    if report_type != "All"
+                    else "All Types"
+                )
             except KeyError:
                 report_type_display = report_type
 
@@ -213,11 +227,7 @@ class ListReports(commands.Cog):
             embed.add_field(
                 name="Last Reported Name", value="\n".join(latest_names), inline=True
             )
-            embed.add_field(
-                name="Times Reported",
-                value="\n".join(counts),
-                inline=True,
-            )
+            embed.add_field(name="Times Reported", value="\n".join(counts), inline=True)
             embed.add_field(
                 name="Reported Most By", value="\n".join(reporters), inline=True
             )

@@ -17,6 +17,7 @@ EXTENSIONS = [
     "commands.ReportDetails",
     "commands.SetReportingChannel",
     "commands.ListReports",
+    "commands.VerifyLegit",
 ]
 
 

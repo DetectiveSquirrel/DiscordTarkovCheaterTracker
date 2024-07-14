@@ -79,7 +79,7 @@ class ReportDetails(commands.Cog):
         if not cheater_details:
             logger.debug(f"No details found for cheater ID: {cheater_id}")
             await interaction.response.send_message(
-                "Cheater not found or an error occurred.", ephemeral=True
+                "Cheater not found.", ephemeral=True
             )
             return
 

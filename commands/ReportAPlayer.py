@@ -4,6 +4,7 @@ from discord import app_commands
 from discord.ext import commands
 import time
 from db.database import ReportType, DatabaseManager, REPORT_TYPE_DISPLAY
+from helpers.utils import get_user_mention
 import logging
 import re
 
@@ -127,6 +128,90 @@ class ReportAPlayer(commands.Cog):
                     return
 
                 cheater_profile_id_int = int(self.cheater_profile_id.value)
+
+                # Check if the player is verified as legitimate
+                verified_status = DatabaseManager.check_verified_legit_status(
+                    cheater_profile_id_int
+                )
+                if verified_status["is_verified"]:
+                    logger.info(
+                        f"Attempt to report verified player {cheater_name_value} (ID: {cheater_profile_id_int})"
+                    )
+
+                    embed = discord.Embed(
+                        title="Player Already Verified as Legitimate",
+                        color=discord.Color.blue(),
+                    )
+                    embed.set_thumbnail(url=modal_interaction.user.display_avatar.url)
+
+                    first_verifier_id = verified_status["verifier_ids"][0]
+                    first_verification_time = verified_status["verification_times"][0]
+
+                    first_verifier_mention = await get_user_mention(
+                        modal_interaction.guild, self.bot, first_verifier_id
+                    )
+                    
+                    # Extract the last known game name and create the verifier mentions string with unique verifiers and their first verification time
+                    last_known_game_name = verified_status["tarkov_game_names"][-1] if verified_status["tarkov_game_names"] else "Unknown"
+                    twitch_name = verified_status["twitch_name"]
+                    
+
+                    verifier_info = {}
+                    for verifier_id, verification_time in zip(verified_status["verifier_ids"], verified_status["verification_times"]):
+                        if verifier_id not in verifier_info or verification_time < verifier_info[verifier_id]:
+                            verifier_info[verifier_id] = verification_time
+
+                    verifier_mentions = []
+                    for verifier_id, verification_time in verifier_info.items():
+                        mention = await get_user_mention(modal_interaction.guild, self.bot, verifier_id)
+                        verifier_mentions.append(f"{mention} <t:{verification_time}:R>")
+
+                    verifier_mentions_str = "\n".join(verifier_mentions)
+
+                    embed.add_field(
+                        name="First Verified By",
+                        value=first_verifier_mention,
+                        inline=True,
+                    )
+                    embed.add_field(
+                        name="Total Verifications",
+                        value=f"` {str(verified_status["count"])} `",
+                        inline=True,
+                    )
+                    embed.add_field(
+                        name="First Verified Time",
+                        value=f"<t:{first_verification_time}>",
+                        inline=True,
+                    )
+                    embed.add_field(
+                        name="Latest Verified Player Name",
+                        value=f"[{last_known_game_name}](https://tarkov.dev/player/{cheater_profile_id_int})",
+                        inline=True,
+                    )
+                    embed.add_field(
+                        name="Account ID",
+                        value=f"[{cheater_profile_id_int}](https://tarkov.dev/player/{cheater_profile_id_int})",
+                        inline=True,
+                    )
+                    if twitch_name:
+                        embed.add_field(
+                            name="Twitch Name",
+                            value=f"[{twitch_name}](https://www.twitch.tv/{twitch_name})",
+                            inline=True
+                        )
+                    embed.add_field(
+                        name="Verified By Users",
+                        value=verifier_mentions_str,
+                        inline=False,
+                    )
+
+                    await modal_interaction.response.send_message(
+                        "This player has been verified as legitimate and cannot be reported.",
+                        embed=embed,
+                        ephemeral=True,
+                    )
+                    return
+
                 report_time = int(time.time())
 
                 logger.info(
@@ -139,6 +224,7 @@ class ReportAPlayer(commands.Cog):
                     cheater_profile_id=cheater_profile_id_int,
                     report_time=report_time,
                     report_type=self.report_enum,
+                    absolved=False,
                 )
 
                 logger.debug("Creating report embed")

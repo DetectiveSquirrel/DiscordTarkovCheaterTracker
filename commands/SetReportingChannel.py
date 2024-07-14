@@ -24,7 +24,7 @@ class SetReportingChannel(commands.Cog):
         # Use DatabaseManager to add or update the server settings
         existing_settings = DatabaseManager.get_server_settings(server_id=guild.id)
         if existing_settings:
-            DatabaseManager.update_server_settings(
+            DatabaseManager.update_guild_server_settings(
                 server_id=guild.id, channel_id=channel.id
             )
             await interaction.response.send_message(
@@ -32,7 +32,7 @@ class SetReportingChannel(commands.Cog):
                 ephemeral=True,
             )
         else:
-            DatabaseManager.add_server_settings(
+            DatabaseManager.add_guild_server_settings(
                 server_id=guild.id, channel_id=channel.id
             )
             await interaction.response.send_message(
