@@ -1,21 +1,15 @@
-from sqlalchemy import (
-    create_engine,
-    Column,
-    Integer,
-    String,
-    BigInteger,
-    Boolean,
-    Text,
-    func,
-    Enum as SQLAlchemyEnum,
-)
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import SQLAlchemyError
-from typing import List, Optional, Dict, Any
-import settings
 import logging
 from enum import Enum, auto
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import BigInteger, Boolean, Column
+from sqlalchemy import Enum as SQLAlchemyEnum
+from sqlalchemy import Integer, String, Text, create_engine, func
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+import settings
 
 logger = logging.getLogger("database")
 
@@ -164,15 +158,11 @@ class DatabaseManager:
         cls._execute_db_operation(op)
 
     @classmethod
-    def get_server_settings(
-        cls, server_id: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
+    def get_server_settings(cls, server_id: Optional[int] = None) -> List[Dict[str, Any]]:
         def op(session):
             query = session.query(ServerSettings)
             if server_id:
-                query = query.filter_by(
-                    **{ServerSettingsFields.SERVER_ID.value: server_id}
-                )
+                query = query.filter_by(**{ServerSettingsFields.SERVER_ID.value: server_id})
             return [item.__dict__ for item in query.all()]
 
         return cls._execute_db_operation(op)
@@ -180,9 +170,7 @@ class DatabaseManager:
     @classmethod
     def update_guild_server_settings(cls, server_id: int, channel_id: int) -> None:
         def op(session):
-            session.query(ServerSettings).filter(
-                ServerSettings.server_id == server_id
-            ).update(
+            session.query(ServerSettings).filter(ServerSettings.server_id == server_id).update(
                 {ServerSettingsFields.CHANNEL_ID.value: channel_id},
                 synchronize_session=False,
             )
@@ -193,9 +181,7 @@ class DatabaseManager:
     @classmethod
     def delete_server_settings(cls, server_id: int) -> None:
         def op(session):
-            session.query(ServerSettings).filter(
-                ServerSettings.server_id == server_id
-            ).delete(synchronize_session=False)
+            session.query(ServerSettings).filter(ServerSettings.server_id == server_id).delete(synchronize_session=False)
             session.commit()
 
         cls._execute_db_operation(op)
@@ -240,17 +226,11 @@ class DatabaseManager:
         def op(session):
             query = session.query(CheaterReport)
             if report_type:
-                query = query.filter_by(
-                    **{CheaterReportFields.REPORT_TYPE.value: report_type}
-                )
+                query = query.filter_by(**{CheaterReportFields.REPORT_TYPE.value: report_type})
             if reporter_user_id:
-                query = query.filter_by(
-                    **{CheaterReportFields.REPORTER_USER_ID.value: reporter_user_id}
-                )
+                query = query.filter_by(**{CheaterReportFields.REPORTER_USER_ID.value: reporter_user_id})
             if server_id:
-                query = query.filter_by(
-                    **{CheaterReportFields.SERVER_ID.value: server_id}
-                )
+                query = query.filter_by(**{CheaterReportFields.SERVER_ID.value: server_id})
             return [item.__dict__ for item in query.all()]
 
         return cls._execute_db_operation(op)
@@ -258,9 +238,7 @@ class DatabaseManager:
     @classmethod
     def update_cheater_report(cls, id: int, updates: Dict[str, Any]) -> None:
         def op(session):
-            session.query(CheaterReport).filter(CheaterReport.id == id).update(
-                updates, synchronize_session=False
-            )
+            session.query(CheaterReport).filter(CheaterReport.id == id).update(updates, synchronize_session=False)
             session.commit()
 
         cls._execute_db_operation(op)
@@ -268,17 +246,13 @@ class DatabaseManager:
     @classmethod
     def delete_cheater_report(cls, id: int) -> None:
         def op(session):
-            session.query(CheaterReport).filter(CheaterReport.id == id).delete(
-                synchronize_session=False
-            )
+            session.query(CheaterReport).filter(CheaterReport.id == id).delete(synchronize_session=False)
             session.commit()
 
         cls._execute_db_operation(op)
 
     @classmethod
-    def get_comprehensive_cheater_details(
-        cls, cheater_id: int
-    ) -> Optional[Dict[str, Any]]:
+    def get_comprehensive_cheater_details(cls, cheater_id: int) -> Optional[Dict[str, Any]]:
         def op(session):
             cheater = cls.get_cheater_basic_info(session, cheater_id)
             verified_status = cls.check_verified_legit_status(cheater_id)
@@ -292,13 +266,9 @@ class DatabaseManager:
                 last_report_time_key = f"last_{report_type.name.lower()}_report_time"
                 most_reported_by_key = f"most_{report_type.name.lower()}_reported_by"
 
-                cheater[total_reports_key] = cls.count_reports(
-                    session, cheater_id, report_type, absolved=False
-                )
+                cheater[total_reports_key] = cls.count_reports(session, cheater_id, report_type, absolved=False)
 
-                last_report = cls.get_last_report(
-                    session, cheater_id, report_type, absolved=False
-                )
+                last_report = cls.get_last_report(session, cheater_id, report_type, absolved=False)
                 if last_report:
                     cheater[last_reported_by_key] = last_report.reporter_user_id
                     cheater[last_report_time_key] = last_report.report_time
@@ -306,17 +276,11 @@ class DatabaseManager:
                     cheater[last_reported_by_key] = None
                     cheater[last_report_time_key] = None
 
-                most_reported_by = cls.get_most_reported_by(
-                    session, cheater_id, report_type, absolved=False
-                )
+                most_reported_by = cls.get_most_reported_by(session, cheater_id, report_type, absolved=False)
                 cheater[most_reported_by_key] = most_reported_by
 
-            cheater["most_reported_server"] = cls.get_most_reported_server(
-                session, cheater_id, absolved=False
-            )
-            cheater["top_reported_servers"] = cls.get_top_reported_servers(
-                session, cheater_id, absolved=False
-            )
+            cheater["most_reported_server"] = cls.get_most_reported_server(session, cheater_id, absolved=False)
+            cheater["top_reported_servers"] = cls.get_top_reported_servers(session, cheater_id, absolved=False)
 
             return cheater
 
@@ -324,22 +288,11 @@ class DatabaseManager:
 
     @staticmethod
     def get_cheater_basic_info(session, cheater_id: int) -> Optional[Dict[str, Any]]:
-        cheater = (
-            session.query(CheaterReport)
-            .filter_by(cheater_profile_id=cheater_id)
-            .order_by(CheaterReport.report_time.desc())
-            .first()
-        )
-        return (
-            {"id": cheater.cheater_profile_id, "name": cheater.cheater_game_name}
-            if cheater
-            else None
-        )
+        cheater = session.query(CheaterReport).filter_by(cheater_profile_id=cheater_id).order_by(CheaterReport.report_time.desc()).first()
+        return {"id": cheater.cheater_profile_id, "name": cheater.cheater_game_name} if cheater else None
 
     @staticmethod
-    def count_reports(
-        session, cheater_id: int, report_type: ReportType, absolved: bool = False
-    ) -> int:
+    def count_reports(session, cheater_id: int, report_type: ReportType, absolved: bool = False) -> int:
         return (
             session.query(CheaterReport)
             .filter_by(
@@ -351,13 +304,9 @@ class DatabaseManager:
         )
 
     @staticmethod
-    def get_most_reported_by(
-        session, cheater_id: int, report_type: ReportType, absolved: bool = False
-    ) -> Optional[Dict[str, Any]]:
+    def get_most_reported_by(session, cheater_id: int, report_type: ReportType, absolved: bool = False) -> Optional[Dict[str, Any]]:
         result = (
-            session.query(
-                CheaterReport.reporter_user_id, func.count().label("report_count")
-            )
+            session.query(CheaterReport.reporter_user_id, func.count().label("report_count"))
             .filter_by(
                 cheater_profile_id=cheater_id,
                 report_type=report_type,
@@ -370,9 +319,7 @@ class DatabaseManager:
         return {"user_id": result[0], "count": result[1]} if result else None
 
     @staticmethod
-    def get_most_reported_server(
-        session, cheater_id: int, absolved: bool = False
-    ) -> Optional[Dict[str, Any]]:
+    def get_most_reported_server(session, cheater_id: int, absolved: bool = False) -> Optional[Dict[str, Any]]:
         result = (
             session.query(CheaterReport.server_id, func.count().label("report_count"))
             .filter_by(cheater_profile_id=cheater_id, absolved=absolved)
@@ -383,9 +330,7 @@ class DatabaseManager:
         return {"server_id": result[0], "count": result[1]} if result else None
 
     @staticmethod
-    def get_last_report(
-        session, cheater_id: int, report_type: ReportType, absolved: bool = False
-    ):
+    def get_last_report(session, cheater_id: int, report_type: ReportType, absolved: bool = False):
         return (
             session.query(CheaterReport)
             .filter_by(
@@ -398,9 +343,7 @@ class DatabaseManager:
         )
 
     @classmethod
-    def get_cheater_reports_by_type(
-        cls, report_type: ReportType, absolved: bool = False
-    ) -> List[Dict[str, Any]]:
+    def get_cheater_reports_by_type(cls, report_type: ReportType, absolved: bool = False) -> List[Dict[str, Any]]:
         def op(session):
             query = session.query(CheaterReport).filter_by(
                 **{
@@ -439,9 +382,7 @@ class DatabaseManager:
         return cls._execute_db_operation(op)
 
     @staticmethod
-    def get_top_reported_servers(
-        session, cheater_id: int, absolved: bool = False, limit: int = 3
-    ) -> List[Dict[str, Any]]:
+    def get_top_reported_servers(session, cheater_id: int, absolved: bool = False, limit: int = 3) -> List[Dict[str, Any]]:
         results = (
             session.query(CheaterReport.server_id, func.count().label("report_count"))
             .filter_by(cheater_profile_id=cheater_id, absolved=absolved)
@@ -453,9 +394,7 @@ class DatabaseManager:
         return [{"server_id": result[0], "count": result[1]} for result in results]
 
     @classmethod
-    def get_cheater_reports_by_user(
-        cls, user_id: int, absolved: bool = False
-    ) -> List[Dict[str, Any]]:
+    def get_cheater_reports_by_user(cls, user_id: int, absolved: bool = False) -> List[Dict[str, Any]]:
         def op(session):
             reports = (
                 session.query(CheaterReport)
@@ -469,9 +408,7 @@ class DatabaseManager:
         return cls._execute_db_operation(op)
 
     @classmethod
-    def get_cheater_reports_by_type_and_user(
-        cls, report_type: ReportType, user_id: int, absolved: bool = False
-    ) -> List[Dict[str, Any]]:
+    def get_cheater_reports_by_type_and_user(cls, report_type: ReportType, user_id: int, absolved: bool = False) -> List[Dict[str, Any]]:
         def op(session):
             reports = (
                 session.query(CheaterReport)
@@ -517,9 +454,7 @@ class DatabaseManager:
     @classmethod
     def mark_cheater_reports_as_absolved(cls, tarkov_profile_id: int) -> None:
         def op(session):
-            session.query(CheaterReport).filter(
-                CheaterReport.cheater_profile_id == tarkov_profile_id
-            ).update(
+            session.query(CheaterReport).filter(CheaterReport.cheater_profile_id == tarkov_profile_id).update(
                 {CheaterReportFields.ABSOLVED.value: True}, synchronize_session=False
             )
             session.commit()
@@ -554,18 +489,14 @@ class DatabaseManager:
     @classmethod
     def check_verified_legit_status(cls, tarkov_profile_id: int) -> Dict[str, Any]:
         def op(session):
-            query = session.query(VerifiedLegit).filter(
-                VerifiedLegit.tarkov_profile_id == tarkov_profile_id
-            )
+            query = session.query(VerifiedLegit).filter(VerifiedLegit.tarkov_profile_id == tarkov_profile_id)
             results = query.all()
             is_verified = len(results) > 0
             verifier_ids = [result.verifier_user_id for result in results]
             verification_times = [result.verified_time for result in results]
             tarkov_game_names = [result.tarkov_game_name for result in results]
 
-            twitch_name = next(
-                (result.twitch_name for result in results if result.twitch_name), None
-            )
+            twitch_name = next((result.twitch_name for result in results if result.twitch_name), None)
 
             return {
                 "is_verified": is_verified,
@@ -575,5 +506,70 @@ class DatabaseManager:
                 "tarkov_game_names": tarkov_game_names,
                 "twitch_name": twitch_name,
             }
+
+        return cls._execute_db_operation(op)
+
+    @classmethod
+    def get_all_verified_users(cls) -> List[Dict[str, Any]]:
+        def op(session):
+            verified_users = session.query(VerifiedLegit).order_by(VerifiedLegit.verified_time.desc()).all()
+            return [
+                {
+                    "tarkov_profile_id": user.tarkov_profile_id,
+                    "tarkov_game_name": user.tarkov_game_name,
+                    "twitch_name": user.twitch_name,
+                    "verifier_user_id": user.verifier_user_id,
+                    "verified_time": user.verified_time,
+                }
+                for user in verified_users
+            ]
+
+        return cls._execute_db_operation(op)
+
+    @classmethod
+    def get_comprehensive_verified_details(cls, verified_user_id: int) -> Optional[Dict[str, Any]]:
+        def op(session):
+            verified_user = (
+                session.query(VerifiedLegit)
+                .filter(VerifiedLegit.tarkov_profile_id == verified_user_id)
+                .order_by(VerifiedLegit.verified_time.asc())
+                .first()
+            )
+
+            if not verified_user:
+                return None
+
+            details = {
+                "tarkov_profile_id": verified_user.tarkov_profile_id,
+                "tarkov_game_name": verified_user.tarkov_game_name,
+                "twitch_name": verified_user.twitch_name,
+                "verifier_user_id": verified_user.verifier_user_id,
+                "verified_time": verified_user.verified_time,
+            }
+
+            # Get all verifications for this user
+            all_verifications = (
+                session.query(VerifiedLegit)
+                .filter(VerifiedLegit.tarkov_profile_id == verified_user_id)
+                .order_by(VerifiedLegit.verified_time.desc())
+                .all()
+            )
+
+            details["verification_count"] = len(all_verifications)
+            details["first_verified_time"] = all_verifications[-1].verified_time if all_verifications else None
+            details["unique_verifiers"] = list(set(v.verifier_user_id for v in all_verifications))
+
+            # Collect all notes
+            details["notes"] = [
+                {
+                    "content": v.notes,
+                    "verifier_user_id": v.verifier_user_id,
+                    "timestamp": v.verified_time,
+                }
+                for v in all_verifications
+                if v.notes
+            ]
+
+            return details
 
         return cls._execute_db_operation(op)

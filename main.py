@@ -6,8 +6,8 @@ from typing import List
 import discord
 from discord.ext import commands
 
-import settings
 import db.database as database
+import settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,8 @@ EXTENSIONS = [
     "commands.SetReportingChannel",
     "commands.ListReports",
     "commands.VerifyLegit",
+    "commands.VerifiedDetails",
+    "commands.ListVerified",
 ]
 
 

@@ -1,6 +1,7 @@
-import pathlib
 import os
+import pathlib
 from logging.config import dictConfig
+
 from dotenv import load_dotenv
 
 # Base directory and important subdirectories
@@ -32,9 +33,7 @@ LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "normal": {
-            "format": "%(levelname)-10s - %(asctime)s - %(module)-15s : %(message)s"
-        },
+        "normal": {"format": "%(levelname)-10s - %(asctime)s - %(module)-15s : %(message)s"},
     },
     "handlers": {
         "console": {
@@ -53,30 +52,30 @@ LOGGING_CONFIG = {
         },
     },
     "loggers": {
-        "bot": {"handlers": ["file"], "level": "DEBUG", "propagate": True},
+        "bot": {"handlers": ["file", "console"], "level": "DEBUG", "propagate": True},
         "discord": {
-            "handlers": ["file"],
+            "handlers": ["file", "console"],
             "level": "INFO",
             "propagate": True,
         },
         "__main__": {
             "handlers": ["file", "console"],
-            "level": "INFO",
+            "level": "DEBUG",
             "propagate": True,
         },
         "database": {
             "handlers": ["file", "console"],
-            "level": "INFO",
+            "level": "DEBUG",
             "propagate": True,
         },
         "command": {
             "handlers": ["file", "console"],
-            "level": "INFO",
+            "level": "DEBUG",
             "propagate": True,
         },
         "helpers": {
             "handlers": ["file", "console"],
-            "level": "INFO",
+            "level": "DEBUG",
             "propagate": True,
         },
     },
@@ -86,9 +85,7 @@ LOGGING_CONFIG = {
 dictConfig(LOGGING_CONFIG)
 
 # Database URL (for SQLAlchemy)
-DATABASE_URL = (
-    f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-)
+DATABASE_URL = f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Bot Version
 BOT_NAME = "Tarkov Cheater Tracker"

@@ -1,12 +1,16 @@
-from typing import List
+import logging
+import time
+
 import discord
 from discord import app_commands
 from discord.ext import commands
-import time
+
 from db.database import DatabaseManager
-from helpers.utils import get_user_mention
-import logging
-import re
+from helpers.utils import (
+    create_already_verified_embed,
+    is_valid_game_name,
+    send_to_report_channels,
+)
 
 logger = logging.getLogger("command")
 
@@ -40,19 +44,11 @@ class VerifyLegit(commands.Cog):
                 style=discord.ButtonStyle.primary,
                 custom_id="verify_legit_button",
             )
-            async def verify_button(
-                self, button_interaction: discord.Interaction, button: discord.ui.Button
-            ):
-                logger.debug(
-                    f"Verify legit button clicked by {button_interaction.user}"
-                )
+            async def verify_button(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+                logger.debug(f"Verify legit button clicked by {button_interaction.user}")
                 if button_interaction.user != interaction.user:
-                    logger.warning(
-                        f"Unauthorized button click by {button_interaction.user}"
-                    )
-                    await button_interaction.response.send_message(
-                        "This button is not for you.", ephemeral=True
-                    )
+                    logger.warning(f"Unauthorized button click by {button_interaction.user}")
+                    await button_interaction.response.send_message("This button is not for you.", ephemeral=True)
                     return
 
                 logger.debug("Sending verify legit modal")
@@ -86,72 +82,31 @@ class VerifyLegit(commands.Cog):
             )
 
             async def on_submit(self, modal_interaction: discord.Interaction):
-                logger.debug(
-                    f"Verify legit modal submitted by {modal_interaction.user}"
-                )
+                logger.debug(f"Verify legit modal submitted by {modal_interaction.user}")
+
                 tarkov_game_name = self.tarkov_game_name.value.strip()
                 tarkov_profile_id = int(self.tarkov_profile_id.value)
-                twitch_name = (
-                    self.twitch_name.value.strip() if self.twitch_name.value else None
-                )
+                twitch_name = self.twitch_name.value.strip() if self.twitch_name.value else None
                 notes = self.notes.value.strip() if self.notes.value else None
                 verified_time = int(time.time())
 
                 logger.debug(f"Validating Tarkov game name: {tarkov_game_name}")
-                if not re.match(r"^(?!.*\d{5})[a-zA-Z0-9_-]{3,15}$", tarkov_game_name):
-                    logger.warning(
-                        f"Invalid Tarkov game name provided: {tarkov_game_name}"
-                    )
+                if not is_valid_game_name(tarkov_game_name):
+                    logger.warning(f"Invalid Tarkov game name provided: {tarkov_game_name}")
                     embed = discord.Embed(
                         title="❌ Invalid Player Name",
                         description="Please enter a name between 3 and 15 characters, using only letters, numbers (max 4), underscores '_', and hyphens '-'.",
                         color=discord.Color.red(),
                     )
-                    await modal_interaction.response.send_message(
-                        embed=embed, ephemeral=True
-                    )
+                    await modal_interaction.response.send_message(embed=embed, ephemeral=True)
                     return
 
-                # Check if the player is already verified
-                verified_status = DatabaseManager.check_verified_legit_status(
-                    tarkov_profile_id
-                )
+                verified_status = DatabaseManager.check_verified_legit_status(tarkov_profile_id)
 
                 if verified_status["is_verified"]:
-                    logger.info(
-                        f"Player {tarkov_game_name} (ID: {tarkov_profile_id}) is already verified"
-                    )
+                    logger.info(f"Player {tarkov_game_name} (ID: {tarkov_profile_id}) is already verified")
 
-                    # Create embed for already verified player
-                    embed = discord.Embed(
-                        title="Player Already Verified as Legitimate",
-                        color=discord.Color.blue(),
-                    )
-                    embed.set_thumbnail(url=modal_interaction.user.display_avatar.url)
-
-                    # Get the first verifier and verification time
-                    first_verifier_id = verified_status["verifier_ids"][0]
-                    first_verification_time = verified_status["verification_times"][0]
-
-                    first_verifier_mention = await get_user_mention(
-                        modal_interaction.guild, self.bot, first_verifier_id
-                    )
-
-                    embed.add_field(
-                        name="First Verified By",
-                        value=first_verifier_mention,
-                        inline=True,
-                    )
-                    embed.add_field(
-                        name="Total Verifications",
-                        value=f"` {str(verified_status["count"])} `",
-                        inline=True,
-                    )
-                    embed.add_field(
-                        name="First Verified Time",
-                        value=f"<t:{first_verification_time}>",
-                        inline=True,
-                    )
+                    embed = await create_already_verified_embed(modal_interaction, self.bot, verified_status)
                     embed.add_field(
                         name="Player Name",
                         value=f"[{tarkov_game_name}](https://tarkov.dev/player/{tarkov_profile_id})",
@@ -163,7 +118,6 @@ class VerifyLegit(commands.Cog):
                         inline=True,
                     )
 
-                    # Still log the new verification
                     DatabaseManager.add_verified_legit(
                         verifier_user_id=modal_interaction.user.id,
                         server_id=modal_interaction.guild_id,
@@ -180,9 +134,7 @@ class VerifyLegit(commands.Cog):
                         ephemeral=True,
                     )
                 else:
-                    logger.info(
-                        f"Verifying player {tarkov_game_name} (ID: {tarkov_profile_id}) as legitimate"
-                    )
+                    logger.info(f"Verifying player {tarkov_game_name} (ID: {tarkov_profile_id}) as legitimate")
                     DatabaseManager.add_and_mark_verified_legit(
                         verifier_user_id=modal_interaction.user.id,
                         server_id=modal_interaction.guild_id,
@@ -204,9 +156,7 @@ class VerifyLegit(commands.Cog):
                         inline=True,
                     )
                     embed.add_field(name="\u200B", value=f"\u200B", inline=True)
-                    embed.add_field(
-                        name="Time", value=f"<t:{verified_time}>", inline=True
-                    )
+                    embed.add_field(name="Time", value=f"<t:{verified_time}>", inline=True)
                     embed.add_field(
                         name="Player Name",
                         value=f"[{tarkov_game_name}](https://tarkov.dev/player/{tarkov_profile_id})",
@@ -220,7 +170,7 @@ class VerifyLegit(commands.Cog):
                     if twitch_name:
                         embed.add_field(
                             name="Twitch Name",
-                            value=f"[{twitch_name}](<https://www.twitch.tv/{twitch_name}>)",
+                            value=f"[{twitch_name}](https://www.twitch.tv/{twitch_name})",
                             inline=True,
                         )
                     if notes:
@@ -233,31 +183,7 @@ class VerifyLegit(commands.Cog):
 
                     logger.debug("Fetching server settings for report channel")
                     server_settings = DatabaseManager.get_server_settings()
-                    for setting in server_settings:
-                        channel_id = setting.get("channel_id")
-                        if channel_id:
-                            logger.debug(
-                                f"Sending verification to channel {channel_id}"
-                            )
-                            report_channel = self.bot.get_channel(channel_id)
-                            if report_channel:
-                                try:
-                                    await report_channel.send(embed=embed, silent=True)
-                                    logger.info(
-                                        f"Verification sent to channel {channel_id}"
-                                    )
-                                except Exception as e:
-                                    logger.error(
-                                        f"Failed to send verification to channel {channel_id}: {e}"
-                                    )
-                            else:
-                                logger.warning(
-                                    f"Could not find report channel with ID {channel_id}"
-                                )
-                        else:
-                            logger.warning(
-                                f"No report channel configured for server settings: {setting}"
-                            )
+                    await send_to_report_channels(self.bot, server_settings, embed)
 
                     logger.info("Player verification submitted successfully")
                     await modal_interaction.response.send_message(
