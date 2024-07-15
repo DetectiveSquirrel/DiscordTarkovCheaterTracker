@@ -87,11 +87,17 @@ class ReportAPlayer(commands.Cog):
                 label="Player's Game Name",
                 placeholder="Enter the player's game name",
                 min_length=3,
-                max_length=15,
+                max_length=17,  # allow for accidental white spacing on either side, its stripped anyway pre regex check
             )
             cheater_profile_id = discord.ui.TextInput(
                 label="Player Profile ID",
                 placeholder="Enter the player's profile ID",
+            )
+            notes = discord.ui.TextInput(
+                label="Report Notes (Optional)",
+                placeholder="Enter any additional notes about the cheater.",
+                style=discord.TextStyle.paragraph,
+                required=False,
             )
 
             async def on_submit(self, modal_interaction: discord.Interaction):
@@ -99,6 +105,7 @@ class ReportAPlayer(commands.Cog):
 
                 cheater_name_value = self.cheater_name.value.strip()
                 cheater_profile_id_int = int(self.cheater_profile_id.value)
+                notes = self.notes.value.strip() if self.notes.value else None
                 report_time = int(time.time())
 
                 logger.debug(f"Validating cheater name: {cheater_name_value}")
@@ -173,6 +180,7 @@ class ReportAPlayer(commands.Cog):
                     cheater_profile_id=cheater_profile_id_int,
                     report_time=report_time,
                     report_type=self.report_enum,
+                    notes=notes,
                     absolved=False,
                 )
 
@@ -203,6 +211,10 @@ class ReportAPlayer(commands.Cog):
                     value=f"[{cheater_profile_id_int}](https://tarkov.dev/player/{cheater_profile_id_int})",
                     inline=True,
                 )
+
+                if notes:
+                    embed.add_field(name="Notes", value=f"```\n{notes}\n```", inline=False)
+
                 embed.add_field(
                     name="From Discord Server",
                     value=f"`{interaction.guild.name}`",
@@ -221,8 +233,19 @@ class ReportAPlayer(commands.Cog):
                 )
 
         logger.debug("Sending initial response with continue button")
+        # Step-by-step embed
+        embed = discord.Embed(
+            title="Instructions to Get Profile ID and Name",
+            description=(
+                "1. Go to [Tarkov.dev/players Page](https://tarkov.dev/players).\n"
+                "2. Find the profile and copy the Profile ID from the URL (the number at the end).\n"
+                "3. Copy the details into the fields and click Submit.\n\n"
+            ),
+            color=discord.Color.blue(),
+        )
+        embed.set_footer(text="Click the button below to continue.")
         await interaction.response.send_message(
-            "Please go to [tarkov.dev/players](https://tarkov.dev/players) to get the profile ID and name (id is the URL # at the end), then click the button below to continue.",
+            embed=embed,
             view=ContinueButton(self.bot),
             ephemeral=True,
         )

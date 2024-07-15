@@ -25,6 +25,7 @@ class Pagination(discord.ui.View):
         self.delete_on_timeout = delete_on_timeout
         self.timeout_field_name = "*Command Timeout:*"
         self.ephemeral = ephemeral
+        self.embed_color = None
 
     async def navigate(self):
         await self._update_page(initial=True)
@@ -38,6 +39,11 @@ class Pagination(discord.ui.View):
         self._update_buttons()
         self._update_timeout_field(embed)
         self._update_footer(embed)
+
+        if self.embed_color is None and embed.color:
+            self.embed_color = embed.color
+        else:
+            embed.color = self.embed_color
 
         if initial:
             await self.interaction.response.send_message(embed=embed, view=self, silent=True, ephemeral=self.ephemeral)

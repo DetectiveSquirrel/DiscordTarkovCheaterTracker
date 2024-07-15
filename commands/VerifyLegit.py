@@ -75,8 +75,8 @@ class VerifyLegit(commands.Cog):
                 required=False,
             )
             notes = discord.ui.TextInput(
-                label="Verification Notes",
-                placeholder="Enter any additional notes about the verification",
+                label="Verification Notes (Optional)",
+                placeholder="Enter any additional notes about the verification.",
                 style=discord.TextStyle.paragraph,
                 required=False,
             )
@@ -173,8 +173,10 @@ class VerifyLegit(commands.Cog):
                             value=f"[{twitch_name}](https://www.twitch.tv/{twitch_name})",
                             inline=True,
                         )
+
                     if notes:
                         embed.add_field(name="Notes", value=f"```\n{notes}\n```", inline=False)
+
                     embed.add_field(
                         name="From Discord Server",
                         value=f"'{modal_interaction.guild.name}'",
@@ -192,8 +194,20 @@ class VerifyLegit(commands.Cog):
                     )
 
         logger.debug("Sending initial response with verify legit button")
+
+        # Step-by-step embed
+        embed = discord.Embed(
+            title="Instructions to Get Profile ID and Name",
+            description=(
+                "1. Go to [Tarkov.dev/players Page](https://tarkov.dev/players).\n"
+                "2. Find the profile and copy the Profile ID from the URL (the number at the end).\n"
+                "3. Copy the details into the fields and click Submit.\n\n"
+            ),
+            color=discord.Color.blue(),
+        )
+        embed.set_footer(text="Click the button below to continue.")
         await interaction.response.send_message(
-            "Please click the button below to open the verification form.",
+            embed=embed,
             view=VerifyLegitButton(self.bot),
             ephemeral=True,
         )

@@ -166,7 +166,7 @@ class ListReports(commands.Cog):
             return embed, pages
 
         logger.info("Creating pagination view")
-        view = Pagination(ctx.interaction, get_page, timeout=60, delete_on_timeout=True)
+        view = Pagination(ctx.interaction, get_page, timeout=60, delete_on_timeout=True, ephemeral=True)
         await view.navigate()
         logger.info("Pagination view navigation started")
 

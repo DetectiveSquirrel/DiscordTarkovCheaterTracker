@@ -29,6 +29,7 @@ class CheaterReportFields(Enum):
     CHEATER_PROFILE_ID = "cheater_profile_id"
     REPORT_TIME = "report_time"
     REPORT_TYPE = "report_type"
+    NOTES = "notes"
     ABSOLVED = "absolved"
 
 
@@ -97,6 +98,7 @@ class CheaterReport(Base):
     cheater_profile_id = Column(BigInteger)
     report_time = Column(BigInteger)
     report_type = Column(SQLAlchemyEnum(ReportType, create_type=True))
+    notes = Column(Text)
     absolved = Column(Boolean, default=False)
 
 
@@ -196,6 +198,7 @@ class DatabaseManager:
         cheater_profile_id: int,
         report_time: int,
         report_type: ReportType,
+        notes: Text,
         absolved: Boolean,
     ) -> None:
         def op(session):
@@ -208,6 +211,7 @@ class DatabaseManager:
                         CheaterReportFields.CHEATER_PROFILE_ID.value: cheater_profile_id,
                         CheaterReportFields.REPORT_TIME.value: report_time,
                         CheaterReportFields.REPORT_TYPE.value: report_type,
+                        CheaterReportFields.NOTES.value: notes,
                         CheaterReportFields.ABSOLVED.value: absolved,
                     }
                 )
@@ -281,6 +285,25 @@ class DatabaseManager:
 
             cheater["most_reported_server"] = cls.get_most_reported_server(session, cheater_id, absolved=False)
             cheater["top_reported_servers"] = cls.get_top_reported_servers(session, cheater_id, absolved=False)
+
+            # Get all reports for this cheater
+            all_reports = (
+                session.query(CheaterReport)
+                .filter(CheaterReport.cheater_profile_id == cheater_id)
+                .order_by(CheaterReport.report_time.desc())
+                .all()
+            )
+
+            # Collect all notes
+            cheater["notes"] = [
+                {
+                    "content": report.notes,
+                    "verifier_user_id": report.reporter_user_id,
+                    "timestamp": report.report_time,
+                }
+                for report in all_reports
+                if report.notes
+            ]
 
             return cheater
 
