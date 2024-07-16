@@ -1,14 +1,41 @@
 import logging
 import math
+from typing import Dict, List, Tuple
 
 import discord
 from discord.ext import commands
 
-from db.database import DatabaseManager
+from db.database import DatabaseManager, VerifiedLegitFields
 from helpers import checks, utils
 from helpers.pagination import Pagination
 
 logger = logging.getLogger("command")
+
+
+class VerifiedUser:
+    def __init__(self, user_id: str, game_name: str, verified_by: str, verified_time: float):
+        self.user_id = user_id
+        self.game_name = game_name
+        self.verified_by = verified_by
+        self.verified_time = verified_time
+
+
+class UserSummary:
+    def __init__(self):
+        self.latest_name = ""
+        self.verified_count = 0
+        self.first_verified_by = ""
+        self.first_verified_time = float("inf")
+        self.latest_verified_time = 0
+
+    def update(self, user: VerifiedUser):
+        self.verified_count += 1
+        if user.verified_time < self.first_verified_time:
+            self.first_verified_time = user.verified_time
+            self.first_verified_by = user.verified_by
+        if user.verified_time > self.latest_verified_time:
+            self.latest_name = user.game_name
+            self.latest_verified_time = user.verified_time
 
 
 class ListVerified(commands.Cog):
@@ -22,64 +49,82 @@ class ListVerified(commands.Cog):
     async def list_verified(self, ctx):
         logger.info(f"list_verified command called by {ctx.author}")
 
-        if not checks.is_guild_configured(ctx):
+        if not await self.check_guild_configuration(ctx):
+            return
+
+        verified_users = await self.fetch_verified_users()
+        if not verified_users:
+            await ctx.send("No verified users found.", ephemeral=True)
+            return
+
+        user_summary = self.process_verified_users(verified_users)
+        sorted_summary = self.sort_user_summary(user_summary)
+        await self.display_pagination(ctx, sorted_summary)
+
+    async def check_guild_configuration(self, ctx) -> bool:
+        if not checks.is_guild_id_configured(ctx.guild.id):
             logger.warning(f"Guild {ctx.guild.id} not configured")
             await ctx.send(
                 "Please configure the server with `/set_reporting_channel` and the channels id.",
                 ephemeral=True,
             )
-            return
+            return False
+        return True
 
+    async def fetch_verified_users(self) -> List[VerifiedUser]:
         logger.debug("Fetching verified users")
         try:
-            verified_users = DatabaseManager.get_all_verified_users()
-            logger.debug(f"Retrieved {len(verified_users)} verified users")
+            db_users = DatabaseManager.get_all_verified_users()
+            logger.debug(f"Retrieved {len(db_users)} verified users")
+            return [
+                VerifiedUser(
+                    user[VerifiedLegitFields.TARKOV_PROFILE_ID.value],
+                    user[VerifiedLegitFields.TARKOV_GAME_NAME.value],
+                    user[VerifiedLegitFields.VERIFIER_USER_ID.value],
+                    user[VerifiedLegitFields.VERIFIED_TIME.value],
+                )
+                for user in db_users
+            ]
         except Exception as e:
-            logger.error(f"Error fetching verified users: {e}")
-            await ctx.send(
-                "An error occurred while fetching verified users. Please try again later.",
-                ephemeral=True,
-            )
-            return
+            logger.error(f"An error occurred while retrieving verified users: {e}")
+            return []
 
-        if not verified_users:
-            logger.info("No verified users found")
-            await ctx.send("No verified users found.", ephemeral=True)
-            return
+    def process_verified_users(self, verified_users: List[VerifiedUser]) -> Dict[str, UserSummary]:
+        logger.debug(f"Processing {len(verified_users)} verified users")
+        user_summary = {}
+        for user in verified_users:
+            if user.user_id not in user_summary:
+                user_summary[user.user_id] = UserSummary()
+            user_summary[user.user_id].update(user)
+        return user_summary
 
-        logger.debug("Processing verified users")
-        sorted_users = sorted(verified_users, key=lambda x: x["verified_time"], reverse=True)
+    def sort_user_summary(self, user_summary: Dict[str, UserSummary]) -> List[Tuple[str, UserSummary]]:
+        logger.debug("Sorting user summary")
+        return sorted(user_summary.items(), key=lambda x: x[1].verified_count, reverse=True)
 
+    async def display_pagination(self, ctx, sorted_summary: List[Tuple[str, UserSummary]]):
         items_per_page = 10
-        pages = math.ceil(len(sorted_users) / items_per_page)
+        pages = math.ceil(len(sorted_summary) / items_per_page)
         logger.debug(f"Calculated {pages} pages for pagination")
 
         async def get_page(page):
             logger.debug(f"Generating page {page} of {pages}")
             start = (page - 1) * items_per_page
             end = start + items_per_page
-            current_page = sorted_users[start:end]
+            current_page = sorted_summary[start:end]
 
-            embed = discord.Embed(
-                title="Verified Users",
-                color=discord.Color.green(),
-            )
+            embed = discord.Embed(title="Verified Users", color=discord.Color.green())
+            latest_names, verified_counts, first_verified_by = [], [], []
 
-            tarkov_names = []
-            twitch_names = []
-            verifiers = []
+            for user_id, data in current_page:
+                latest_names.append(f"[{data.latest_name}](https://tarkov.dev/player/{user_id})")
+                verified_counts.append(f"` {data.verified_count} `")
+                verifier_mention = await utils.get_user_mention(data.first_verified_by)
+                first_verified_by.append(f"{verifier_mention} <t:{int(data.first_verified_time)}:R>")
 
-            for user in current_page:
-                tarkov_names.append(f"[{user['tarkov_game_name']}](https://tarkov.dev/player/{user['tarkov_profile_id']})")
-                twitch_names.append(f"[{user['twitch_name']}](https://twitch.tv/{user['twitch_name']})" if user["twitch_name"] else "N/A")
-                verifier_mention = await utils.get_user_mention(ctx.guild, ctx.bot, user["verifier_user_id"])
-                verifiers.append(f"{verifier_mention} <t:{user['verified_time']}:R>")
-                logger.debug(f"Processed user: {user['tarkov_game_name']}, twitch: {user['twitch_name']}, verifier: {verifier_mention}")
-
-            embed.add_field(name="Tarkov Name", value="\n".join(tarkov_names), inline=True)
-            embed.add_field(name="Twitch Name", value="\n".join(twitch_names), inline=True)
-            embed.add_field(name="Verified By", value="\n".join(verifiers), inline=True)
-
+            embed.add_field(name="Latest Game Name", value="\n".join(latest_names), inline=True)
+            embed.add_field(name="Times Verified", value="\n".join(verified_counts), inline=True)
+            embed.add_field(name="First Verified By", value="\n".join(first_verified_by), inline=True)
             logger.debug(f"Generated embed for page {page}")
             return embed, pages
 
