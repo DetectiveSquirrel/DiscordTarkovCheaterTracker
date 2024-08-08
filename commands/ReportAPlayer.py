@@ -1,8 +1,10 @@
+import json
 import logging
 import time
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 
+import aiohttp
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -24,7 +26,7 @@ class ReportData:
     reporter_id: int
     server_id: int
     cheater_name: str
-    cheater_profile_id: int
+    cheater_profile_id: Optional[int]
     report_time: int
     report_type: ReportType
     notes: str = None
@@ -61,11 +63,7 @@ class ReportModal(discord.ui.Modal):
         label="Player's Game Name",
         placeholder="Enter the player's game name",
         min_length=3,
-        max_length=17,
-    )
-    cheater_profile_id = discord.ui.TextInput(
-        label="Player Profile ID",
-        placeholder="Enter the player's profile ID",
+        max_length=16,
     )
     notes = discord.ui.TextInput(
         label="Report Notes (Optional)",
@@ -77,11 +75,50 @@ class ReportModal(discord.ui.Modal):
     async def on_submit(self, modal_interaction: discord.Interaction):
         logger.debug(f"Report modal submitted by {modal_interaction.user}")
 
+        await modal_interaction.response.defer(ephemeral=True)
+
+        cheater_name = self.cheater_name.value.strip()
+        logger.debug(f"Cheater name entered: {cheater_name}")
+
+        if not is_valid_game_name(cheater_name):
+            logger.warning(f"Invalid cheater name provided: {cheater_name}")
+            embed = discord.Embed(
+                title="❌ Invalid Player Name",
+                description="Please enter a name between 3 and 15 characters, using only letters, numbers (max 4), underscores '_', and hyphens '-'.",
+                color=discord.Color.red(),
+            )
+            await modal_interaction.followup.send(embed=embed, ephemeral=True)
+            return
+
+        profile_data = await self.fetch_profile_data(cheater_name)
+        logger.debug(f"Profile data received: {profile_data}")
+
+        if not profile_data:
+            logger.warning(f"Failed to fetch profile data for {cheater_name}")
+            await modal_interaction.followup.send(
+                f"Unable to find a profile for the player '{cheater_name}'. Please check the name and try again.", ephemeral=True
+            )
+            return
+
+        cheater_profile_id = profile_data.get("aid")
+        logger.debug(f"Extracted cheater_profile_id: {cheater_profile_id}")
+
+        if not cheater_profile_id:
+            logger.error(f"Profile data for {cheater_name} does not contain 'aid'")
+            await modal_interaction.followup.send(
+                f"Error processing the profile for '{cheater_name}'. Please try again later.", ephemeral=True
+            )
+            return
+
+        # Use the correct in-game nickname from the API response
+        correct_cheater_name = profile_data["Info"]["Nickname"]
+        logger.debug(f"Correct in-game nickname: {correct_cheater_name}")
+
         report_data = ReportData(
             reporter_id=modal_interaction.user.id,
             server_id=modal_interaction.guild_id,
-            cheater_name=self.cheater_name.value.strip(),
-            cheater_profile_id=int(self.cheater_profile_id.value),
+            cheater_name=correct_cheater_name,
+            cheater_profile_id=cheater_profile_id,
             report_time=int(time.time()),
             report_type=self.report_enum,
             notes=self.notes.value.strip() if self.notes.value else None,
@@ -92,22 +129,50 @@ class ReportModal(discord.ui.Modal):
 
         await self.submit_report(modal_interaction, report_data)
 
-    async def validate_report(self, interaction: discord.Interaction, report_data: ReportData) -> bool:
-        if not is_valid_game_name(report_data.cheater_name):
-            logger.warning(f"Invalid cheater name provided: {report_data.cheater_name}")
-            embed = discord.Embed(
-                title="❌ Invalid Player Name",
-                description="Please enter a name between 3 and 15 characters, using only letters, numbers (max 4), underscores '_', and hyphens '-'.",
-                color=discord.Color.red(),
-            )
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return False
+    async def fetch_profile_data(self, nickname: str) -> Optional[dict]:
+        url = f"http://192.168.0.169:5007/find_account?nickname={nickname}&exact_match=true"
+        logger.debug(f"Fetching profile data from URL: {url}")
 
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url) as response:
+                    logger.debug(f"Response status: {response.status}")
+                    logger.debug(f"Response headers: {response.headers}")
+
+                    response_text = await response.text()
+                    logger.debug(f"Raw response text: {response_text}")
+
+                    if response.status == 200:
+                        data = await response.json()
+                        logger.debug(f"Parsed JSON data: {data}")
+
+                        if not data:
+                            logger.info(f"No profile found for nickname: {nickname}")
+                            return None
+                        elif isinstance(data, dict):
+                            return data
+                        elif isinstance(data, list) and len(data) > 0:
+                            return data[0]
+                        else:
+                            logger.warning(f"Unexpected data format: {data}")
+                            return None
+                    else:
+                        logger.error(f"Failed to fetch profile data: HTTP {response.status}")
+                        return None
+            except json.JSONDecodeError as json_err:
+                logger.error(f"JSON Decode Error: {str(json_err)}")
+                logger.error(f"Response content: {response_text}")
+                return None
+            except Exception as e:
+                logger.error(f"Error fetching profile data: {str(e)}")
+                return None
+
+    async def validate_report(self, interaction: discord.Interaction, report_data: ReportData) -> bool:
         verified_status = DatabaseManager.check_verified_legit_status(report_data.cheater_profile_id)
         if verified_status["is_verified"]:
             logger.info(f"Attempt to report verified player {report_data.cheater_name} (ID: {report_data.cheater_profile_id})")
             embed = await self.create_verified_player_embed(interaction, verified_status, report_data)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "This player has been verified as legitimate and cannot be reported.",
                 embed=embed,
                 ephemeral=True,
@@ -134,10 +199,9 @@ class ReportModal(discord.ui.Modal):
         await send_to_report_channels(self.bot, server_settings, embed)
 
         logger.info("Report submitted successfully")
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"{self.report_type_display} report has been submitted successfully.",
             ephemeral=True,
-            silent=True,
         )
 
     async def create_verified_player_embed(
@@ -267,15 +331,14 @@ class ReportAPlayer(commands.Cog):
     async def send_instructions(self, interaction: discord.Interaction, report_enum: ReportType):
         logger.debug("Sending initial response with continue button")
         embed = discord.Embed(
-            title="Instructions to Get Profile ID and Name",
+            title="Report a Player",
             description=(
-                "1. Go to [Tarkov.dev/players Page](https://tarkov.dev/players).\n"
-                "2. Find the profile and copy the Profile ID from the URL (the number at the end).\n"
-                "3. Copy the details into the fields and click Submit.\n\n"
+                "You're about to report a player. Please make sure you have the correct in-game name of the player.\n\n"
+                "Click the button below to continue and fill out the report form."
             ),
             color=discord.Color.blue(),
         )
-        embed.set_footer(text="Click the button below to continue.")
+        embed.set_footer(text="Ensure you have the correct player name before proceeding.")
         await interaction.response.send_message(
             embed=embed,
             view=ContinueButton(self.bot, REPORT_TYPE_DISPLAY[report_enum], report_enum, interaction),
